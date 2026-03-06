@@ -532,7 +532,6 @@ const bgm = document.getElementById("bgm");
 bgm.volume = 0;
 
 const MAX_VOL = 0.12;
-const FADE_ZONE = 0.15; // bottom 15% of page triggers fade out
 
 let started = false;
 let fadeInterval = null;
@@ -556,7 +555,7 @@ document.addEventListener("touchstart", startMusic, { passive: true });
 document.addEventListener("touchmove", startMusic, { passive: true });
 
 // ── Smooth volume transition ──
-function smoothFadeTo(target) {
+function smoothFadeTo(target, speed = 0.06) {
   if (fadeInterval) clearInterval(fadeInterval);
   fadeInterval = setInterval(() => {
     const diff = target - bgm.volume;
@@ -566,23 +565,46 @@ function smoothFadeTo(target) {
       fadeInterval = null;
       return;
     }
-    bgm.volume += diff * 0.06;
+    bgm.volume += diff * speed;
   }, 30);
 }
 
-// ── Scroll-based volume ──
+// ── Scroll-based volume with dramatic peak at bottom ──
+let peakTriggered = false;
+let peakLocked = false;
+
 window.addEventListener("scroll", () => {
-  if (!started) return;
+  if (!started || peakLocked) return;
 
   const scrolled = window.scrollY;
   const total = document.body.scrollHeight - window.innerHeight;
   const progress = scrolled / total; // 0 = top, 1 = bottom
 
-  // Fade out near bottom
-  if (progress >= (1 - FADE_ZONE)) {
-    const fadeRatio = 1 - ((progress - (1 - FADE_ZONE)) / FADE_ZONE);
-    smoothFadeTo(MAX_VOL * Math.max(0, fadeRatio));
-  } else {
+  const PEAK_ZONE = 0.88;   // peak starts at 88%
+  const PEAK_TOP  = 0.94;   // peak apex at 94%
+
+  if (progress >= PEAK_TOP && !peakTriggered) {
+    // ── Hit the apex: swell loud then die ──
+    peakTriggered = true;
+    peakLocked = true;
+
+    smoothFadeTo(0.55, 60);  // surge up fast
+    setTimeout(() => {
+      smoothFadeTo(0, 25);   // fade to silence slowly
+    }, 900);
+
+  } else if (progress >= PEAK_ZONE && !peakTriggered) {
+    // ── Approaching apex: slowly swell ──
+    const ratio = (progress - PEAK_ZONE) / (PEAK_TOP - PEAK_ZONE);
+    const target = MAX_VOL + (0.55 - MAX_VOL) * ratio;
+    smoothFadeTo(target);
+
+  } else if (progress < PEAK_ZONE) {
+    // ── Normal range: reset peak flag if scrolled back up ──
+    if (peakTriggered) {
+      peakTriggered = false;
+      peakLocked = false;
+    }
     smoothFadeTo(MAX_VOL);
   }
 }, { passive: true });
