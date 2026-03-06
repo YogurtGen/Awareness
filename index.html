@@ -287,6 +287,53 @@
     .closing { padding: 36px 28px; }
   }
 
+  /* ── AYO ECHO ── */
+  .ayo-wrap {
+    display: inline-block;
+    position: relative;
+    height: 1.4em;
+    width: 100%;
+  }
+
+  .ayo {
+    display: block;
+    font-family: 'Playfair Display', serif;
+    font-weight: 500;
+    font-style: normal;
+    color: var(--text);
+    position: absolute;
+    left: 0;
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  .closing-wrap.visible .echo3 {
+    animation: echoLayer 3.2s ease forwards;
+    animation-delay: 0.2s;
+  }
+  .closing-wrap.visible .echo2 {
+    animation: echoLayer 3.2s ease forwards;
+    animation-delay: 0.7s;
+  }
+  .closing-wrap.visible .echo1 {
+    animation: echoSettle 3.2s ease forwards;
+    animation-delay: 1.3s;
+  }
+
+  @keyframes echoLayer {
+    0%   { opacity: 0;    transform: scale(1.08); }
+    15%  { opacity: 0.18; transform: scale(1.04); }
+    60%  { opacity: 0.12; transform: scale(1.01); }
+    100% { opacity: 0;    transform: scale(1); }
+  }
+
+  @keyframes echoSettle {
+    0%   { opacity: 0;    transform: scale(1.05); }
+    20%  { opacity: 0.55; transform: scale(1.02); }
+    60%  { opacity: 0.85; transform: scale(1.005); }
+    100% { opacity: 1;    transform: scale(1); }
+  }
+
 
 </style>
 </head>
@@ -393,7 +440,7 @@
     </div>
   </div>
 
-  <div class="stanza">
+  <div class="stanza" id="stanza-wind">
     <div class="tag">v · yang jarang muncul</div>
     <div class="verse">
       Yang tenang jarang datang.<br>
@@ -484,7 +531,11 @@
         <span class="spacer"></span>
         tapi untuk berdiri di sebelahku<br>
         dan berkata,<br>
-        <strong>"ayo."</strong>
+        <span class="ayo-wrap">
+          <span class="ayo echo3">"ayo."</span>
+          <span class="ayo echo2">"ayo."</span>
+          <span class="ayo echo1">"ayo."</span>
+        </span>
       </div>
     </div>
   </div>
@@ -588,10 +639,10 @@ window.addEventListener("scroll", () => {
     peakTriggered = true;
     peakLocked = true;
 
-    smoothFadeTo(0.55, 0.12);   // surge up fast
+    smoothFadeTo(0.55, 60);  // surge up fast
     setTimeout(() => {
-      smoothFadeTo(0, 0.018);   // fade to silence slowly (~3 detik)
-    }, 1000);
+      smoothFadeTo(0, 25);   // fade to silence slowly
+    }, 900);
 
   } else if (progress >= PEAK_ZONE && !peakTriggered) {
     // ── Approaching apex: slowly swell ──
@@ -608,6 +659,187 @@ window.addEventListener("scroll", () => {
     smoothFadeTo(MAX_VOL);
   }
 }, { passive: true });
+</script>
+
+<canvas id="leafCanvas" style="
+  position:fixed; inset:0; width:100%; height:100%;
+  pointer-events:none; z-index:500;
+  opacity:0; transition: opacity 2.5s ease;
+"></canvas>
+
+<script>
+// ── Natural Leaf Fall ──
+const lc  = document.getElementById('leafCanvas');
+const lx  = lc.getContext('2d');
+
+function resizeLc() { lc.width = window.innerWidth; lc.height = window.innerHeight; }
+resizeLc();
+window.addEventListener('resize', resizeLc);
+
+// Very limited earthy palette — no gold rush
+const LEAF_COLORS = [
+  [120, 85,  45],   // dark oak brown
+  [145, 105, 55],   // warm chestnut
+  [100, 70,  35],   // deep bark
+  [160, 120, 65],   // muted amber
+  [90,  65,  30],   // shadow brown
+];
+
+// Draw a single organic leaf using bezier — no ellipses
+function drawNaturalLeaf(ctx, size, curlAngle) {
+  const s = size;
+  // A leaf: pointed tip, rounded base, slight curl from curlAngle
+  ctx.beginPath();
+  ctx.moveTo(0, -s);
+  ctx.bezierCurveTo(
+     s * 0.9 + Math.cos(curlAngle) * s * 0.15,  -s * 0.3,
+     s * 0.7,  s * 0.6,
+     0,  s * 0.9
+  );
+  ctx.bezierCurveTo(
+    -s * 0.7,  s * 0.6,
+    -s * 0.9 - Math.cos(curlAngle) * s * 0.15, -s * 0.3,
+     0, -s
+  );
+  ctx.fill();
+}
+
+function drawLeafVein(ctx, size) {
+  const s = size;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.85);
+  ctx.quadraticCurveTo(s * 0.05, 0, 0, s * 0.8);
+  ctx.stroke();
+  // Side veins
+  for (let i = -1; i <= 1; i += 2) {
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 0.3);
+    ctx.quadraticCurveTo(i * s * 0.4, 0, i * s * 0.5, s * 0.1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, s * 0.2);
+    ctx.quadraticCurveTo(i * s * 0.35, s * 0.4, i * s * 0.45, s * 0.5);
+    ctx.stroke();
+  }
+}
+
+function spawnLeaf() {
+  const [r,g,b] = LEAF_COLORS[Math.floor(Math.random() * LEAF_COLORS.length)];
+  // Spawn from upper area, leaning left side for natural tree feel
+  const x = Math.random() * lc.width * 1.1;
+  const size = 10 + Math.random() * 14;
+  return {
+    x, y: -size - Math.random() * 200,
+    // Slow, lazy fall — not uniform
+    vx: 0.3 + Math.random() * 0.7,
+    vy: 0.6 + Math.random() * 0.8,
+    // Pendulum rotation — leaves swing, not spin
+    rot: (Math.random() - 0.5) * 0.6,
+    rotV: 0,
+    rotDamping: 0.96,
+    rotForce: (Math.random() - 0.5) * 0.003,
+    // Gentle horizontal sway like a pendulum
+    swayPhase: Math.random() * Math.PI * 2,
+    swaySpeed: 0.008 + Math.random() * 0.006,
+    swayAmp: 0.4 + Math.random() * 0.8,
+    // Curl changes slowly over time
+    curl: Math.random() * 0.5,
+    curlSpeed: (Math.random() - 0.5) * 0.003,
+    size,
+    r, g, b,
+    alpha: 0.55 + Math.random() * 0.35,
+    life: 1,
+    fading: false,
+  };
+}
+
+let leaves       = [];
+let leafRunning  = false;
+let leafFadeOut  = false;
+let totalSpawned = 0;
+let spawnTimer   = 0;
+const MAX_LEAVES     = 28;   // fewer = more believable
+const SPAWN_INTERVAL = 22;   // frames — slow drip, not burst
+const SPAWN_DURATION = 11000;// 11s of gentle falling
+
+function tickLeaves() {
+  if (!leafRunning) return;
+  lx.clearRect(0, 0, lc.width, lc.height);
+
+  // Spawn
+  if (!leafFadeOut && totalSpawned < MAX_LEAVES) {
+    spawnTimer++;
+    if (spawnTimer >= SPAWN_INTERVAL) {
+      spawnTimer = 0;
+      leaves.push(spawnLeaf());
+      totalSpawned++;
+    }
+  }
+
+  leaves = leaves.filter(l => l.life > 0.02 && l.y < lc.height + 60);
+
+  for (const l of leaves) {
+    // Pendulum-style rotation — organic, not mechanical
+    l.rotV += l.rotForce;
+    l.rotV *= l.rotDamping;
+    l.rot  += l.rotV;
+
+    // Sway movement
+    l.swayPhase += l.swaySpeed;
+    l.x += l.vx + Math.sin(l.swayPhase) * l.swayAmp;
+    l.y += l.vy * (0.85 + Math.abs(Math.sin(l.swayPhase)) * 0.3);
+
+    l.curl += l.curlSpeed;
+
+    if (leafFadeOut) l.life -= 0.003;
+
+    lx.save();
+    lx.translate(l.x, l.y);
+    lx.rotate(l.rot);
+
+    // Fill
+    lx.fillStyle = `rgba(${l.r},${l.g},${l.b},${l.alpha * l.life})`;
+    drawNaturalLeaf(lx, l.size, l.curl);
+
+    // Vein — slightly lighter
+    lx.strokeStyle = `rgba(${Math.min(l.r+30,255)},${Math.min(l.g+25,255)},${Math.min(l.b+15,255)},${l.alpha * l.life * 0.4})`;
+    lx.lineWidth = 0.5;
+    drawLeafVein(lx, l.size);
+
+    lx.restore();
+  }
+
+  if (leafFadeOut && leaves.length === 0) {
+    leafRunning = false;
+    lc.style.opacity = '0';
+    return;
+  }
+
+  requestAnimationFrame(tickLeaves);
+}
+
+function triggerLeaves() {
+  if (leafRunning) return;
+  leafRunning  = true;
+  leafFadeOut  = false;
+  leaves       = [];
+  totalSpawned = 0;
+  spawnTimer   = 0;
+  lc.style.opacity = '1';
+  requestAnimationFrame(tickLeaves);
+  setTimeout(() => { leafFadeOut = true; }, SPAWN_DURATION);
+}
+
+let windTriggered = false;
+const windObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !windTriggered) {
+      windTriggered = true;
+      triggerLeaves();
+    }
+  });
+}, { threshold: 0.35 });
+windObs.observe(document.getElementById('stanza-wind'));
 </script>
 
 </body>
