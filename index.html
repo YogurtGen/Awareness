@@ -287,53 +287,6 @@
     .closing { padding: 36px 28px; }
   }
 
-  /* ── AYO ECHO ── */
-  .ayo-wrap {
-    display: inline-block;
-    position: relative;
-    height: 1.4em;
-    width: 100%;
-  }
-
-  .ayo {
-    display: block;
-    font-family: 'Playfair Display', serif;
-    font-weight: 500;
-    font-style: normal;
-    color: var(--text);
-    position: absolute;
-    left: 0;
-    opacity: 0;
-    transform: scale(1);
-  }
-
-  .closing-wrap.visible .echo3 {
-    animation: echoLayer 3.2s ease forwards;
-    animation-delay: 0.2s;
-  }
-  .closing-wrap.visible .echo2 {
-    animation: echoLayer 3.2s ease forwards;
-    animation-delay: 0.7s;
-  }
-  .closing-wrap.visible .echo1 {
-    animation: echoSettle 3.2s ease forwards;
-    animation-delay: 1.3s;
-  }
-
-  @keyframes echoLayer {
-    0%   { opacity: 0;    transform: scale(1.08); }
-    15%  { opacity: 0.18; transform: scale(1.04); }
-    60%  { opacity: 0.12; transform: scale(1.01); }
-    100% { opacity: 0;    transform: scale(1); }
-  }
-
-  @keyframes echoSettle {
-    0%   { opacity: 0;    transform: scale(1.05); }
-    20%  { opacity: 0.55; transform: scale(1.02); }
-    60%  { opacity: 0.85; transform: scale(1.005); }
-    100% { opacity: 1;    transform: scale(1); }
-  }
-
 
 </style>
 </head>
@@ -440,7 +393,7 @@
     </div>
   </div>
 
-  <div class="stanza" id="stanza-wind">
+  <div class="stanza">
     <div class="tag">v · yang jarang muncul</div>
     <div class="verse">
       Yang tenang jarang datang.<br>
@@ -531,11 +484,7 @@
         <span class="spacer"></span>
         tapi untuk berdiri di sebelahku<br>
         dan berkata,<br>
-        <span class="ayo-wrap">
-          <span class="ayo echo3">"ayo."</span>
-          <span class="ayo echo2">"ayo."</span>
-          <span class="ayo echo1">"ayo."</span>
-        </span>
+        <strong>"ayo."</strong>
       </div>
     </div>
   </div>
@@ -669,36 +618,33 @@ window.addEventListener("scroll", () => {
 
 <script>
 // ── Natural Leaf Fall ──
-const lc  = document.getElementById('leafCanvas');
-const lx  = lc.getContext('2d');
+const lc = document.getElementById('leafCanvas');
+const lx = lc.getContext('2d');
 
 function resizeLc() { lc.width = window.innerWidth; lc.height = window.innerHeight; }
 resizeLc();
 window.addEventListener('resize', resizeLc);
 
-// Very limited earthy palette — no gold rush
 const LEAF_COLORS = [
-  [120, 85,  45],   // dark oak brown
-  [145, 105, 55],   // warm chestnut
-  [100, 70,  35],   // deep bark
-  [160, 120, 65],   // muted amber
-  [90,  65,  30],   // shadow brown
+  [120, 85,  45],
+  [145, 105, 55],
+  [100, 70,  35],
+  [160, 120, 65],
+  [90,  65,  30],
 ];
 
-// Draw a single organic leaf using bezier — no ellipses
-function drawNaturalLeaf(ctx, size, curlAngle) {
+function drawNaturalLeaf(ctx, size, curl) {
   const s = size;
-  // A leaf: pointed tip, rounded base, slight curl from curlAngle
   ctx.beginPath();
   ctx.moveTo(0, -s);
   ctx.bezierCurveTo(
-     s * 0.9 + Math.cos(curlAngle) * s * 0.15,  -s * 0.3,
+     s * 0.9 + Math.cos(curl) * s * 0.15, -s * 0.3,
      s * 0.7,  s * 0.6,
      0,  s * 0.9
   );
   ctx.bezierCurveTo(
     -s * 0.7,  s * 0.6,
-    -s * 0.9 - Math.cos(curlAngle) * s * 0.15, -s * 0.3,
+    -s * 0.9 - Math.cos(curl) * s * 0.15, -s * 0.3,
      0, -s
   );
   ctx.fill();
@@ -710,7 +656,6 @@ function drawLeafVein(ctx, size) {
   ctx.moveTo(0, -s * 0.85);
   ctx.quadraticCurveTo(s * 0.05, 0, 0, s * 0.8);
   ctx.stroke();
-  // Side veins
   for (let i = -1; i <= 1; i += 2) {
     ctx.beginPath();
     ctx.moveTo(0, -s * 0.3);
@@ -725,121 +670,110 @@ function drawLeafVein(ctx, size) {
 
 function spawnLeaf() {
   const [r,g,b] = LEAF_COLORS[Math.floor(Math.random() * LEAF_COLORS.length)];
-  // Spawn from upper area, leaning left side for natural tree feel
-  const x = Math.random() * lc.width * 1.1;
-  const size = 10 + Math.random() * 14;
   return {
-    x, y: -size - Math.random() * 200,
-    // Slow, lazy fall — not uniform
+    x: Math.random() * lc.width * 1.1,
+    y: -20 - Math.random() * 160,
     vx: 0.3 + Math.random() * 0.7,
     vy: 0.6 + Math.random() * 0.8,
-    // Pendulum rotation — leaves swing, not spin
     rot: (Math.random() - 0.5) * 0.6,
     rotV: 0,
     rotDamping: 0.96,
     rotForce: (Math.random() - 0.5) * 0.003,
-    // Gentle horizontal sway like a pendulum
     swayPhase: Math.random() * Math.PI * 2,
     swaySpeed: 0.008 + Math.random() * 0.006,
     swayAmp: 0.4 + Math.random() * 0.8,
-    // Curl changes slowly over time
     curl: Math.random() * 0.5,
     curlSpeed: (Math.random() - 0.5) * 0.003,
-    size,
+    size: 10 + Math.random() * 14,
     r, g, b,
     alpha: 0.55 + Math.random() * 0.35,
     life: 1,
-    fading: false,
   };
 }
 
-let leaves       = [];
-let leafRunning  = false;
-let leafFadeOut  = false;
-let totalSpawned = 0;
-let spawnTimer   = 0;
-const MAX_LEAVES     = 28;   // fewer = more believable
-const SPAWN_INTERVAL = 22;   // frames — slow drip, not burst
-const SPAWN_DURATION = 11000;// 11s of gentle falling
+let leaves      = [];
+let leafRunning = false;
+let stopSpawn   = false;  // true when user scrolls
+let spawnTimer  = 0;
+const MAX_ON_SCREEN  = 22; // cap active leaves at once
+const SPAWN_INTERVAL = 26; // frames between spawns — slow drip
+const SCROLL_FADE_PX = 280;
 
 function tickLeaves() {
   if (!leafRunning) return;
   lx.clearRect(0, 0, lc.width, lc.height);
 
-  // Spawn
-  if (!leafFadeOut && totalSpawned < MAX_LEAVES) {
+  // Keep spawning as long as user hasn't scrolled
+  if (!stopSpawn && leaves.length < MAX_ON_SCREEN) {
     spawnTimer++;
     if (spawnTimer >= SPAWN_INTERVAL) {
       spawnTimer = 0;
       leaves.push(spawnLeaf());
-      totalSpawned++;
     }
   }
 
+  // Remove leaves that fell off screen or fully faded
   leaves = leaves.filter(l => l.life > 0.02 && l.y < lc.height + 60);
 
   for (const l of leaves) {
-    // Pendulum-style rotation — organic, not mechanical
     l.rotV += l.rotForce;
     l.rotV *= l.rotDamping;
     l.rot  += l.rotV;
-
-    // Sway movement
     l.swayPhase += l.swaySpeed;
     l.x += l.vx + Math.sin(l.swayPhase) * l.swayAmp;
     l.y += l.vy * (0.85 + Math.abs(Math.sin(l.swayPhase)) * 0.3);
-
     l.curl += l.curlSpeed;
-
-    if (leafFadeOut) l.life -= 0.003;
+    if (stopSpawn) l.life -= 0.004; // fade out existing leaves on scroll
 
     lx.save();
     lx.translate(l.x, l.y);
     lx.rotate(l.rot);
-
-    // Fill
-    lx.fillStyle = `rgba(${l.r},${l.g},${l.b},${l.alpha * l.life})`;
+    lx.fillStyle   = `rgba(${l.r},${l.g},${l.b},${l.alpha * l.life})`;
     drawNaturalLeaf(lx, l.size, l.curl);
-
-    // Vein — slightly lighter
     lx.strokeStyle = `rgba(${Math.min(l.r+30,255)},${Math.min(l.g+25,255)},${Math.min(l.b+15,255)},${l.alpha * l.life * 0.4})`;
     lx.lineWidth = 0.5;
     drawLeafVein(lx, l.size);
-
     lx.restore();
   }
 
-  if (leafFadeOut && leaves.length === 0) {
+  // All gone after scroll — stop loop
+  if (stopSpawn && leaves.length === 0) {
     leafRunning = false;
-    lc.style.opacity = '0';
     return;
   }
 
   requestAnimationFrame(tickLeaves);
 }
 
-function triggerLeaves() {
+function startLeaves() {
   if (leafRunning) return;
-  leafRunning  = true;
-  leafFadeOut  = false;
-  leaves       = [];
-  totalSpawned = 0;
-  spawnTimer   = 0;
-  lc.style.opacity = '1';
+  leafRunning = true;
+  stopSpawn   = false;
+  leaves      = [];
+  spawnTimer  = 0;
+  lc.style.transition = 'opacity 2.5s ease';
+  lc.style.opacity    = '1';
   requestAnimationFrame(tickLeaves);
-  setTimeout(() => { leafFadeOut = true; }, SPAWN_DURATION);
 }
 
-let windTriggered = false;
-const windObs = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting && !windTriggered) {
-      windTriggered = true;
-      triggerLeaves();
-    }
-  });
-}, { threshold: 0.35 });
-windObs.observe(document.getElementById('stanza-wind'));
+// Start on load
+window.addEventListener('load', () => setTimeout(startLeaves, 500));
+
+// Fade canvas + stop spawning as user scrolls
+window.addEventListener('scroll', () => {
+  const scrollY = window.scrollY;
+  if (scrollY > 0 && !stopSpawn) {
+    stopSpawn = true;
+    // Smooth canvas fade tied to scroll distance
+    const fade = () => {
+      const ratio = Math.min(window.scrollY / SCROLL_FADE_PX, 1);
+      lc.style.transition = 'none';
+      lc.style.opacity = String(1 - ratio);
+      if (ratio < 1) requestAnimationFrame(fade);
+    };
+    fade();
+  }
+}, { passive: true });
 </script>
 
 </body>
