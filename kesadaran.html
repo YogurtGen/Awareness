@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pola</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0d0b;
+    --paper: #181410;
+    --gold: #c9a96e;
+    --gold-dim: rgba(201, 169, 110, 0.18);
+    --text: #e8e0d4;
+    --muted: #7a6f62;
+    --soft: #b5a898;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Source Serif 4', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(201,169,110,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 1px;
+    background: var(--gold);
+    width: 0%;
+    transition: width 0.08s linear;
+    z-index: 999;
+    opacity: 0.6;
+  }
+
+  .page {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 100px 44px 140px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    margin-bottom: 90px;
+    opacity: 0;
+    animation: riseIn 1.4s cubic-bezier(0.16,1,0.3,1) forwards;
+    animation-delay: 0.2s;
+  }
+
+  .header-eyebrow {
+    font-family: 'Source Serif 4', serif;
+    font-size: 11px;
+    font-style: italic;
+    letter-spacing: 3px;
+    color: var(--gold);
+    opacity: 0.7;
+    margin-bottom: 28px;
+  }
+
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(46px, 9vw, 88px);
+    font-weight: 400;
+    font-style: italic;
+    line-height: 0.95;
+    letter-spacing: -2px;
+    color: var(--text);
+  }
+
+  .header-title span {
+    color: var(--gold);
+    display: block;
+  }
+
+  .header-sub {
+    margin-top: 28px;
+    font-size: 14px;
+    font-weight: 300;
+    color: var(--muted);
+    font-style: italic;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── ORNAMENT ── */
+  .ornament {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 56px 0;
+    opacity: 0;
+    animation: fadeIn 1.2s ease forwards;
+  }
+
+  .ornament-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold));
+    opacity: 0.25;
+  }
+
+  .ornament-line.rev {
+    background: linear-gradient(to left, transparent, var(--gold));
+  }
+
+  .ornament-glyph {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    color: var(--gold);
+    opacity: 0.4;
+    letter-spacing: 6px;
+  }
+
+  /* ── STANZAS ── */
+  .stanza {
+    margin-bottom: 72px;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+
+  .stanza.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .tag {
+    font-family: 'Source Serif 4', serif;
+    font-size: 10px;
+    font-style: italic;
+    letter-spacing: 4px;
+    color: var(--gold);
+    opacity: 0.45;
+    margin-bottom: 18px;
+    text-transform: lowercase;
+  }
+
+  .verse {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(19px, 3vw, 25px);
+    font-weight: 400;
+    line-height: 1.85;
+    color: var(--text);
+    letter-spacing: 0.1px;
+  }
+
+  .verse em {
+    font-style: italic;
+    color: var(--soft);
+  }
+
+  .verse strong {
+    font-weight: 500;
+    color: #f0e8dc;
+  }
+
+  .verse .pull {
+    display: block;
+    margin: 20px 0 20px 28px;
+    padding-left: 20px;
+    border-left: 1px solid rgba(201,169,110,0.25);
+    color: var(--soft);
+    font-style: italic;
+    font-size: 0.9em;
+    line-height: 2;
+  }
+
+  .verse .spacer { display: block; height: 14px; }
+
+  .verse .question {
+    display: block;
+    margin-top: 18px;
+    color: var(--muted);
+    font-style: italic;
+    font-size: 0.88em;
+    line-height: 2;
+  }
+
+  /* ── CLOSING CARD ── */
+  .closing-wrap {
+    margin-top: 100px;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 1.2s ease, transform 1.2s ease;
+  }
+
+  .closing-wrap.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .closing {
+    position: relative;
+    padding: 52px 48px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,169,110,0.15);
+  }
+
+  .closing::before {
+    content: '\201C';
+    position: absolute;
+    top: -20px;
+    left: 40px;
+    font-family: 'Playfair Display', serif;
+    font-size: 80px;
+    color: var(--gold);
+    opacity: 0.2;
+    line-height: 1;
+  }
+
+  .closing-text {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(17px, 2.5vw, 22px);
+    font-style: italic;
+    font-weight: 400;
+    line-height: 2;
+    color: var(--soft);
+  }
+
+  .closing-text strong {
+    color: var(--text);
+    font-style: normal;
+  }
+
+  .closing-text .spacer { display: block; height: 16px; }
+
+  /* ── END ── */
+  .end {
+    text-align: center;
+    margin-top: 80px;
+    opacity: 0;
+    animation: fadeIn 2s ease forwards;
+    animation-delay: 4s;
+  }
+
+  .end span {
+    font-size: 10px;
+    letter-spacing: 6px;
+    color: var(--gold);
+    opacity: 0.3;
+    font-family: 'Source Serif 4', serif;
+  }
+
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(40px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @media (max-width: 480px) {
+    .page { padding: 72px 28px 100px; }
+    .closing { padding: 36px 28px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="page">
+
+  <div class="header">
+    <div class="header-eyebrow">sebuah catatan untuk diri sendiri</div>
+    <h1 class="header-title">
+      Terlalu<br>
+      <span>Sadar</span>
+    </h1>
+    <div class="header-sub">— dan kelelahan yang tidak ada namanya</div>
+  </div>
+
+  <div class="ornament" style="animation-delay:1s">
+    <div class="ornament-line"></div>
+    <div class="ornament-glyph">✦</div>
+    <div class="ornament-line rev"></div>
+  </div>
+
+  <div class="stanza">
+    <div class="tag">i · pengamat</div>
+    <div class="verse">
+      Aku datang ke dunia ini<br>
+      dengan kepala yang bekerja terlalu keras —<br>
+      <span class="spacer"></span>
+      membaca cara orang berbicara tentang ibunya,<br>
+      memperhatikan jeda di antara kalimat,<br>
+      mencatat apa yang <em>tidak</em> mereka katakan.<br>
+      <span class="spacer"></span>
+      Tanpa diminta.<br>
+      Tanpa bisa berhenti.
+    </div>
+  </div>
+
+  <div class="stanza">
+    <div class="tag">ii · berharap salah</div>
+    <div class="verse">
+      Dan setiap kali pola itu muncul —<br>
+      yang sudah kukenal sebelum ia selesai terjadi —<br>
+      <span class="spacer"></span>
+      aku tidak bersorak.<br>
+      <span class="spacer"></span>
+      <span class="pull">
+        Aku justru diam,<br>
+        dan dengan pelan mendorong sisi terbaik mereka<br>
+        ke permukaan,<br>
+        berharap kali ini<br>
+        aku yang terbukti keliru.
+      </span>
+      Karena salah berarti<br>
+      masih ada yang bisa mengejutkanku.
+    </div>
+  </div>
+
+  <div class="stanza">
+    <div class="tag">iii · pola yang kembali</div>
+    <div class="verse">
+      Kadang berhasil — <em>sebagian.</em><br>
+      Ada yang tumbuh, ada yang berubah.<br>
+      Hal-hal baik yang benar-benar nyata.<br>
+      <span class="spacer"></span>
+      Tapi di akhir cerita,<br>
+      selalu ada sesuatu yang kembali<br>
+      ke bentuk aslinya —<br>
+      <span class="spacer"></span>
+      seperti tanah liat yang belum cukup<br>
+      <strong>ingin dibakar.</strong>
+    </div>
+  </div>
+
+  <div class="stanza">
+    <div class="tag">iv · pelabuhan</div>
+    <div class="verse">
+      Kenapa mereka yang datang padaku<br>
+      selalu yang sedang membawa<br>
+      koper penuh keretakan?<br>
+      <span class="spacer"></span>
+      Mereka datang untuk didengar.<br>
+      Untuk merasa aman.<br>
+      Untuk bercerita tentang luka<br>
+      yang belum pernah berani mereka ucapkan keras-keras.<br>
+      <span class="spacer"></span>
+      <span class="pull">
+        Dan aku mendengarkan —<br>
+        bukan karena kewajiban,<br>
+        tapi karena aku memang melihat mereka.<br>
+        Benar-benar melihat.
+      </span>
+      Tapi rasa aman<br>
+      ternyata tidak otomatis<br>
+      <em>berubah menjadi sesuatu yang lain.</em><br>
+      <span class="spacer"></span>
+      Mungkin aku terlihat seperti pelabuhan.<br>
+      Tempat orang singgah,<br>
+      memperbaiki layar,<br>
+      lalu pergi berlayar lagi —<br>
+      <span class="spacer"></span>
+      <strong>sementara pelabuhan tetap di sini.</strong>
+    </div>
+  </div>
+
+  <div class="stanza">
+    <div class="tag">v · yang jarang muncul</div>
+    <div class="verse">
+      Yang tenang jarang datang.<br>
+      Yang tidak membawa badai dalam dirinya<br>
+      jarang singgah.<br>
+      <span class="spacer"></span>
+      <span class="question">
+        Dan ketika sesekali muncul —<br>
+        entah kenapa,<br>
+        mereka tidak melihat ke sini.
+      </span>
+      <span class="spacer"></span>
+      Mungkin mereka tidak mencari pelabuhan.<br>
+      Mereka sudah punya tempat pulang.<br>
+      <span class="spacer"></span>
+      <em>Dan aku masih belajar<br>
+      cara terlihat seperti rumah,<br>
+      bukan hanya tempat berteduh sementara.</em>
+    </div>
+  </div>
+
+  <div class="stanza">
+    <div class="tag">vi · yang kuinginkan sebenarnya</div>
+    <div class="verse">
+      Bukan misteri.<br>
+      Bukan intensitas yang membakar.<br>
+      Bukan seseorang yang perlu diselamatkan.<br>
+      <span class="spacer"></span>
+      Hanya seseorang yang suatu pagi<br>
+      bisa duduk di sebelahku,<br>
+      minum kopi yang sama panasnya,<br>
+      dan berkata —<br>
+      <span class="spacer"></span>
+      <strong>"oke, hari ini kita hadapi apa dulu?"</strong><br>
+      <span class="spacer"></span>
+      Bukan peran.<br>
+      Bukan dinamika.<br>
+      Hanya dua orang<br>
+      yang memilih satu sama lain<br>
+      <em>setiap harinya.</em>
+    </div>
+  </div>
+
+  <div class="stanza">
+    <div class="tag">vii · tentang usia dan jarak</div>
+    <div class="verse">
+      Mungkin masalahnya sederhana:<br>
+      aku terlalu muda untuk kepalaku sendiri.<br>
+      <span class="spacer"></span>
+      Di usia ini, banyak yang masih belajar<br>
+      cara mengenali diri di cermin.<br>
+      Masih mencari tahu<br>
+      mana luka yang perlu disembuhkan,<br>
+      mana yang sudah jadi karakter.<br>
+      <span class="spacer"></span>
+      Sementara aku sudah memikirkan<br>
+      <em>ke mana cermin itu akan digantung<br>
+      dua puluh tahun dari sekarang.</em><br>
+      <span class="spacer"></span>
+      Bukan lebih baik.<br>
+      Bukan lebih siap.<br>
+      <span class="spacer"></span>
+      Hanya… <strong>berbeda fase.</strong><br>
+      Dan fase yang berbeda<br>
+      butuh kesabaran yang berbeda pula.
+    </div>
+  </div>
+
+  <div class="closing-wrap">
+    <div class="closing">
+      <div class="closing-text">
+        Mungkin aku tidak sedang menunggu seseorang yang sempurna.<br>
+        Mungkin aku hanya menunggu seseorang<br>
+        yang juga sudah lelah dengan semua yang tidak perlu —<br>
+        <span class="spacer"></span>
+        yang ingin hidup seperti ini:<br>
+        <strong>sederhana, jujur, berjalan berdua.</strong><br>
+        <span class="spacer"></span>
+        Bukan karena dunia tidak punya drama.<br>
+        Tapi karena kita memilih<br>
+        untuk tidak menjadikannya<br>
+        <em>bahan bakar utama.</em><br>
+        <span class="spacer"></span>
+        Dan di suatu titik nanti —<br>
+        seseorang akan datang<br>
+        bukan untuk bersandar,<br>
+        bukan untuk diselamatkan,<br>
+        <span class="spacer"></span>
+        tapi untuk berdiri di sebelahku<br>
+        dan berkata,<br>
+        <strong>"ayo."</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="end">
+    <span>∎</span>
+  </div>
+
+</div>
+
+<script>
+  // Progress bar
+  const prog = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight) * 100;
+    prog.style.width = Math.min(pct, 100) + '%';
+  });
+
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.stanza, .closing-wrap').forEach(el => observer.observe(el));
+
+  // Stagger ornaments
+  document.querySelectorAll('.ornament').forEach((el, i) => {
+    el.style.animation = `fadeIn 1s ease forwards ${1 + i * 0.3}s`;
+    el.style.animationFillMode = 'forwards';
+  });
+</script>
+
+<audio id="bgm" loop>
+  <source src="audio.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const bgm = document.getElementById("bgm");
+
+bgm.volume = 0;
+
+function startMusic() {
+
+  bgm.play();
+
+  let v = 0;
+
+  const fade = setInterval(() => {
+    v += 0.01;
+
+    if (v >= 0.12) {
+      v = 0.12;
+      clearInterval(fade);
+    }
+
+    bgm.volume = v;
+
+  }, 120);
+
+  document.removeEventListener("click", startMusic);
+  document.removeEventListener("wheel", startMusic);
+  document.removeEventListener("touchstart", startMusic);
+  document.removeEventListener("keydown", startMusic);
+}
+
+document.addEventListener("click", startMusic);
+document.addEventListener("wheel", startMusic);
+document.addEventListener("touchstart", startMusic);
+document.addEventListener("keydown", startMusic);
+</script>
+
+</body>
+</html>
