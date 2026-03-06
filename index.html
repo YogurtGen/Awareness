@@ -588,10 +588,10 @@ window.addEventListener("scroll", () => {
     peakTriggered = true;
     peakLocked = true;
 
-    smoothFadeTo(0.55, 60);  // surge up fast
+    smoothFadeTo(0.55, 0.12);   // surge up fast
     setTimeout(() => {
-      smoothFadeTo(0, 25);   // fade to silence slowly
-    }, 900);
+      smoothFadeTo(0, 0.018);   // fade to silence slowly (~3 detik)
+    }, 1000);
 
   } else if (progress >= PEAK_ZONE && !peakTriggered) {
     // ── Approaching apex: slowly swell ──
