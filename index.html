@@ -505,10 +505,6 @@
   });
 </script>
 
-<audio id="bgm" loop>
-  <source src="audio.mp3" type="audio/mpeg">
-</audio>
-
 <script>
 const bgm = document.getElementById("bgm");
 
@@ -536,12 +532,14 @@ function startMusic() {
   document.removeEventListener("wheel", startMusic);
   document.removeEventListener("touchstart", startMusic);
   document.removeEventListener("keydown", startMusic);
+  document.removeEventListener("mousemove", startMusic);
 }
 
 document.addEventListener("click", startMusic);
 document.addEventListener("wheel", startMusic);
 document.addEventListener("touchstart", startMusic);
 document.addEventListener("keydown", startMusic);
+document.addEventListener("mousemove", startMusic);
 </script>
 
 </body>
