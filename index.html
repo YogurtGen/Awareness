@@ -35,6 +35,10 @@
 
   html { scroll-behavior: smooth; }
 
+  /* Hide scrollbar */
+  html, body { scrollbar-width: none; -ms-overflow-style: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+
   body {
     background: var(--bg);
     color: var(--text);
@@ -625,18 +629,22 @@ function setupAudio() {
 // ── Smooth gain/volume transition ──
 function smoothFadeTo(target, speed = 0.06) {
   if (fadeInterval) clearInterval(fadeInterval);
+
+  // No Web Audio fallback — cap target to 1.0
+  const effectiveTarget = gainNode ? target : Math.min(target / BASE_GAIN, 1);
+
   fadeInterval = setInterval(() => {
     const current = gainNode ? gainNode.gain.value : bgm.volume;
-    const diff = target - current;
+    const diff = effectiveTarget - current;
     if (Math.abs(diff) < 0.002) {
-      if (gainNode) gainNode.gain.value = target;
-      else bgm.volume = Math.min(target, 1);
+      if (gainNode) gainNode.gain.value = effectiveTarget;
+      else bgm.volume = effectiveTarget;
       clearInterval(fadeInterval);
       fadeInterval = null;
       return;
     }
     if (gainNode) gainNode.gain.value += diff * speed;
-    else bgm.volume = Math.min(bgm.volume + diff * speed, 1);
+    else bgm.volume += diff * speed;
   }, 30);
 }
 
