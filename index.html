@@ -287,10 +287,108 @@
     .closing { padding: 36px 28px; }
   }
 
+  /* ── SPLASH SCREEN ── */
+  #splash {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 1.4s ease;
+  }
 
-</style>
+  #splash.hide {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .splash-eyebrow {
+    font-family: 'Source Serif 4', serif;
+    font-size: 10px;
+    font-style: italic;
+    letter-spacing: 4px;
+    color: var(--gold);
+    opacity: 0;
+    animation: fadeIn 1.2s ease forwards 0.4s;
+    margin-bottom: 32px;
+  }
+
+  .splash-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(42px, 8vw, 78px);
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1;
+    letter-spacing: -2px;
+    color: var(--text);
+    text-align: center;
+    opacity: 0;
+    animation: riseIn 1.4s cubic-bezier(0.16,1,0.3,1) forwards 0.6s;
+  }
+
+  .splash-title span { color: var(--gold); display: block; }
+
+  .splash-enter {
+    margin-top: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    opacity: 0;
+    animation: fadeIn 1.2s ease forwards 1.6s;
+  }
+
+  .splash-enter-text {
+    font-family: 'Source Serif 4', serif;
+    font-size: 11px;
+    font-style: italic;
+    letter-spacing: 3px;
+    color: var(--muted);
+  }
+
+  .splash-pulse {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(201,169,110,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulseRing 2s ease-in-out infinite;
+  }
+
+  .splash-pulse::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    opacity: 0.7;
+  }
+
+  @keyframes pulseRing {
+    0%, 100% { transform: scale(1);    border-color: rgba(201,169,110,0.35); }
+    50%       { transform: scale(1.12); border-color: rgba(201,169,110,0.65); }
+  }</style>
 </head>
 <body>
+
+<!-- Splash screen — guarantees user gesture for audio -->
+<div id="splash">
+  <div class="splash-eyebrow">sebuah catatan untuk diri sendiri</div>
+  <div class="splash-title">
+    Terlalu<br>
+    <span>Sadar</span>
+  </div>
+  <div class="splash-enter">
+    <div class="splash-enter-text">sentuh untuk membaca</div>
+    <div class="splash-pulse"></div>
+  </div>
+</div>
 
 <div class="progress" id="progress"></div>
 
@@ -528,31 +626,12 @@
 </audio>
 
 <script>
-const bgm = document.getElementById("bgm");
-bgm.volume = 0;
+const bgm   = document.getElementById("bgm");
+const splash = document.getElementById("splash");
+bgm.volume  = 0;
 
 const MAX_VOL = 0.12;
-
-let started = false;
 let fadeInterval = null;
-
-// ── Start audio on first interaction ──
-function startMusic() {
-  if (started) return;
-  started = true;
-
-  bgm.play().then(() => {
-    smoothFadeTo(MAX_VOL);
-  }).catch(() => {
-    started = false;
-  });
-}
-
-document.addEventListener("click", startMusic);
-document.addEventListener("keydown", startMusic);
-document.addEventListener("wheel", startMusic, { passive: true });
-document.addEventListener("touchstart", startMusic, { passive: true });
-document.addEventListener("touchmove", startMusic, { passive: true });
 
 // ── Smooth volume transition ──
 function smoothFadeTo(target, speed = 0.06) {
@@ -569,42 +648,47 @@ function smoothFadeTo(target, speed = 0.06) {
   }, 30);
 }
 
+// ── Splash click → dismiss + start audio + start leaves ──
+splash.addEventListener("click", () => {
+  // Hide splash
+  splash.classList.add("hide");
+  setTimeout(() => { splash.style.display = 'none'; }, 1500);
+
+  // Start audio
+  bgm.play().then(() => {
+    smoothFadeTo(MAX_VOL);
+  }).catch(() => {});
+
+  // Start leaves
+  setTimeout(startLeaves, 300);
+});
+
 // ── Scroll-based volume with dramatic peak at bottom ──
 let peakTriggered = false;
 let peakLocked = false;
 
 window.addEventListener("scroll", () => {
-  if (!started || peakLocked) return;
+  if (peakLocked) return;
 
   const scrolled = window.scrollY;
   const total = document.body.scrollHeight - window.innerHeight;
-  const progress = scrolled / total; // 0 = top, 1 = bottom
+  const progress = scrolled / total;
 
-  const PEAK_ZONE = 0.88;   // peak starts at 88%
-  const PEAK_TOP  = 0.94;   // peak apex at 94%
+  const PEAK_ZONE = 0.88;
+  const PEAK_TOP  = 0.94;
 
   if (progress >= PEAK_TOP && !peakTriggered) {
-    // ── Hit the apex: swell loud then die ──
     peakTriggered = true;
-    peakLocked = true;
-
-    smoothFadeTo(0.55, 60);  // surge up fast
-    setTimeout(() => {
-      smoothFadeTo(0, 25);   // fade to silence slowly
-    }, 900);
+    peakLocked    = true;
+    smoothFadeTo(0.55, 0.12);
+    setTimeout(() => { smoothFadeTo(0, 0.018); }, 1000);
 
   } else if (progress >= PEAK_ZONE && !peakTriggered) {
-    // ── Approaching apex: slowly swell ──
-    const ratio = (progress - PEAK_ZONE) / (PEAK_TOP - PEAK_ZONE);
-    const target = MAX_VOL + (0.55 - MAX_VOL) * ratio;
-    smoothFadeTo(target);
+    const ratio  = (progress - PEAK_ZONE) / (PEAK_TOP - PEAK_ZONE);
+    smoothFadeTo(MAX_VOL + (0.55 - MAX_VOL) * ratio);
 
   } else if (progress < PEAK_ZONE) {
-    // ── Normal range: reset peak flag if scrolled back up ──
-    if (peakTriggered) {
-      peakTriggered = false;
-      peakLocked = false;
-    }
+    if (peakTriggered) { peakTriggered = false; peakLocked = false; }
     smoothFadeTo(MAX_VOL);
   }
 }, { passive: true });
@@ -639,11 +723,10 @@ function drawNaturalLeaf(ctx, size, curl) {
   ctx.moveTo(0, -s);
   ctx.bezierCurveTo(
      s * 0.9 + Math.cos(curl) * s * 0.15, -s * 0.3,
-     s * 0.7,  s * 0.6,
-     0,  s * 0.9
+     s * 0.7, s * 0.6, 0, s * 0.9
   );
   ctx.bezierCurveTo(
-    -s * 0.7,  s * 0.6,
+    -s * 0.7, s * 0.6,
     -s * 0.9 - Math.cos(curl) * s * 0.15, -s * 0.3,
      0, -s
   );
@@ -693,17 +776,16 @@ function spawnLeaf() {
 
 let leaves      = [];
 let leafRunning = false;
-let stopSpawn   = false;  // true when user scrolls
+let stopSpawn   = false;
 let spawnTimer  = 0;
-const MAX_ON_SCREEN  = 22; // cap active leaves at once
-const SPAWN_INTERVAL = 26; // frames between spawns — slow drip
+const MAX_ON_SCREEN  = 22;
+const SPAWN_INTERVAL = 26;
 const SCROLL_FADE_PX = 280;
 
 function tickLeaves() {
   if (!leafRunning) return;
   lx.clearRect(0, 0, lc.width, lc.height);
 
-  // Keep spawning as long as user hasn't scrolled
   if (!stopSpawn && leaves.length < MAX_ON_SCREEN) {
     spawnTimer++;
     if (spawnTimer >= SPAWN_INTERVAL) {
@@ -712,7 +794,6 @@ function tickLeaves() {
     }
   }
 
-  // Remove leaves that fell off screen or fully faded
   leaves = leaves.filter(l => l.life > 0.02 && l.y < lc.height + 60);
 
   for (const l of leaves) {
@@ -723,7 +804,7 @@ function tickLeaves() {
     l.x += l.vx + Math.sin(l.swayPhase) * l.swayAmp;
     l.y += l.vy * (0.85 + Math.abs(Math.sin(l.swayPhase)) * 0.3);
     l.curl += l.curlSpeed;
-    if (stopSpawn) l.life -= 0.004; // fade out existing leaves on scroll
+    if (stopSpawn) l.life -= 0.004;
 
     lx.save();
     lx.translate(l.x, l.y);
@@ -736,7 +817,6 @@ function tickLeaves() {
     lx.restore();
   }
 
-  // All gone after scroll — stop loop
   if (stopSpawn && leaves.length === 0) {
     leafRunning = false;
     return;
@@ -756,20 +836,16 @@ function startLeaves() {
   requestAnimationFrame(tickLeaves);
 }
 
-// Start on load
-window.addEventListener('load', () => setTimeout(startLeaves, 500));
-
-// Fade canvas + stop spawning as user scrolls
+// Fade leaves on scroll
 window.addEventListener('scroll', () => {
   const scrollY = window.scrollY;
   if (scrollY > 0 && !stopSpawn) {
     stopSpawn = true;
-    // Smooth canvas fade tied to scroll distance
     const fade = () => {
       const ratio = Math.min(window.scrollY / SCROLL_FADE_PX, 1);
       lc.style.transition = 'none';
       lc.style.opacity = String(1 - ratio);
-      if (ratio < 1) requestAnimationFrame(fade);
+      if (ratio < 1 && stopSpawn) requestAnimationFrame(fade);
     };
     fade();
   }
