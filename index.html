@@ -289,60 +289,47 @@
 
   /* ── SPLASH ── */
   #splash {
-    position: fixed; inset: 0;
-    background: var(--bg);
-    z-index: 9999;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    cursor: pointer;
-    transition: opacity 1.4s ease;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none; -webkit-user-select: none;
+    position:fixed; inset:0; background:var(--bg); z-index:9999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    cursor:pointer; transition:opacity 1.4s ease;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none; -webkit-user-select:none;
   }
-  #splash.hide { opacity: 0; pointer-events: none; }
-
+  #splash.hide { opacity:0; pointer-events:none; }
   .splash-eyebrow {
-    font-family: 'Source Serif 4', serif;
-    font-size: 10px; font-style: italic;
-    letter-spacing: 4px; color: var(--gold); opacity: 0;
-    animation: fadeIn 1.2s ease forwards 0.4s;
-    margin-bottom: 32px;
+    font-family:'Source Serif 4',serif; font-size:10px; font-style:italic;
+    letter-spacing:4px; color:var(--gold); opacity:0; margin-bottom:32px;
+    animation:fadeIn 1.2s ease forwards 0.4s;
   }
   .splash-title {
-    font-family: 'Playfair Display', serif;
-    font-size: clamp(42px, 8vw, 78px);
-    font-weight: 400; font-style: italic;
-    line-height: 1; letter-spacing: -2px;
-    color: var(--text); text-align: center;
-    opacity: 0;
-    animation: riseIn 1.4s cubic-bezier(0.16,1,0.3,1) forwards 0.6s;
+    font-family:'Playfair Display',serif; font-size:clamp(42px,8vw,78px);
+    font-weight:400; font-style:italic; line-height:1; letter-spacing:-2px;
+    color:var(--text); text-align:center; opacity:0;
+    animation:riseIn 1.4s cubic-bezier(0.16,1,0.3,1) forwards 0.6s;
   }
-  .splash-title span { color: var(--gold); display: block; }
+  .splash-title span { color:var(--gold); display:block; }
   .splash-enter {
-    margin-top: 52px;
-    display: flex; flex-direction: column;
-    align-items: center; gap: 14px;
-    opacity: 0;
-    animation: fadeIn 1.2s ease forwards 1.6s;
+    margin-top:52px; display:flex; flex-direction:column;
+    align-items:center; gap:14px; opacity:0;
+    animation:fadeIn 1.2s ease forwards 1.6s;
   }
   .splash-enter-text {
-    font-family: 'Source Serif 4', serif;
-    font-size: 11px; font-style: italic;
-    letter-spacing: 3px; color: var(--muted);
+    font-family:'Source Serif 4',serif; font-size:11px; font-style:italic;
+    letter-spacing:3px; color:var(--muted);
   }
   .splash-pulse {
-    width: 36px; height: 36px; border-radius: 50%;
-    border: 1px solid rgba(201,169,110,0.35);
-    display: flex; align-items: center; justify-content: center;
-    animation: pulseRing 2s ease-in-out infinite;
+    width:36px; height:36px; border-radius:50%;
+    border:1px solid rgba(201,169,110,0.35);
+    display:flex; align-items:center; justify-content:center;
+    animation:pulseRing 2s ease-in-out infinite;
   }
   .splash-pulse::after {
-    content: ''; width: 8px; height: 8px;
-    border-radius: 50%; background: var(--gold); opacity: 0.7;
+    content:''; width:8px; height:8px; border-radius:50%;
+    background:var(--gold); opacity:0.7;
   }
   @keyframes pulseRing {
-    0%,100% { transform: scale(1);    border-color: rgba(201,169,110,0.35); }
-    50%      { transform: scale(1.12); border-color: rgba(201,169,110,0.65); }
+    0%,100% { transform:scale(1);    border-color:rgba(201,169,110,0.35); }
+    50%      { transform:scale(1.12); border-color:rgba(201,169,110,0.65); }
   }
 
 
@@ -596,69 +583,70 @@
 
 <script>
 const bgm = document.getElementById("bgm");
-bgm.volume = 0;
+bgm.volume = 1; // always max native volume — gain node handles actual level
 
-// Mobile gets higher base volume, desktop stays subtle
 const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
                || window.matchMedia("(pointer: coarse)").matches;
 
-const MAX_VOL  = isMobile ? 0.55 : 0.18;  // louder on mobile speaker
-const PEAK_VOL = isMobile ? 0.85 : 0.55;  // peak stays dramatic, not earrape
+// GainNode lets us go above 1.0 for mobile speaker boost
+// Desktop: gain 0.18 (subtle ambient)
+// Mobile:  gain 2.5 (loud enough for small speaker, limiter prevents clipping)
+const BASE_GAIN = isMobile ? 2.5 : 0.18;
+const PEAK_GAIN = isMobile ? 4.5 : 0.55;
 
 let started = false;
 let fadeInterval = null;
+let gainNode, audioCtx;
 
-// ── Web Audio compressor — acts as a soft limiter ──
-let audioCtx, gainNode, compressor, sourceNode;
-
-function setupAudioChain() {
+function setupAudio() {
   if (audioCtx) return;
   try {
-    audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
-    sourceNode = audioCtx.createMediaElementSource(bgm);
-    gainNode   = audioCtx.createGain();
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaElementSource(bgm);
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = 0;
 
-    // DynamicsCompressor as limiter: clamps loud spikes smoothly
-    compressor = audioCtx.createDynamicsCompressor();
-    compressor.threshold.value = -18;  // start compressing at -18dB
-    compressor.knee.value      = 8;    // soft knee
-    compressor.ratio.value     = 6;    // gentle compression ratio
-    compressor.attack.value    = 0.003;
-    compressor.release.value   = 0.25;
+    // Limiter — prevents earrape at high gain
+    const limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -3;
+    limiter.knee.value      = 0;
+    limiter.ratio.value     = 20;
+    limiter.attack.value    = 0.001;
+    limiter.release.value   = 0.1;
 
-    sourceNode
-      .connect(gainNode)
-      .connect(compressor)
-      .connect(audioCtx.destination);
+    source.connect(gainNode).connect(limiter).connect(audioCtx.destination);
   } catch(e) {
-    // Fallback: no Web Audio, plain volume still works
-    audioCtx = null;
+    // Fallback: no Web Audio, use plain volume
+    gainNode = null;
+    bgm.volume = 0;
   }
 }
 
-// ── Smooth volume transition ──
+// ── Smooth gain/volume transition ──
 function smoothFadeTo(target, speed = 0.06) {
   if (fadeInterval) clearInterval(fadeInterval);
   fadeInterval = setInterval(() => {
-    const diff = target - bgm.volume;
+    const current = gainNode ? gainNode.gain.value : bgm.volume;
+    const diff = target - current;
     if (Math.abs(diff) < 0.002) {
-      bgm.volume = target;
+      if (gainNode) gainNode.gain.value = target;
+      else bgm.volume = Math.min(target, 1);
       clearInterval(fadeInterval);
       fadeInterval = null;
       return;
     }
-    bgm.volume += diff * speed;
+    if (gainNode) gainNode.gain.value += diff * speed;
+    else bgm.volume = Math.min(bgm.volume + diff * speed, 1);
   }, 30);
 }
 
-// ── Start audio (called from splash click) ──
 function startMusic() {
   if (started) return;
   started = true;
-  setupAudioChain();
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  setupAudio();
+  if (audioCtx?.state === 'suspended') audioCtx.resume();
   bgm.play().then(() => {
-    smoothFadeTo(MAX_VOL);
+    smoothFadeTo(BASE_GAIN);
   }).catch(() => { started = false; });
 }
 
@@ -667,7 +655,7 @@ let peakTriggered = false;
 let peakLocked    = false;
 
 window.addEventListener("scroll", () => {
-  if (peakLocked) return;
+  if (!started || peakLocked) return;
 
   const progress = window.scrollY / (document.body.scrollHeight - window.innerHeight);
   const PEAK_ZONE = 0.88;
@@ -676,16 +664,16 @@ window.addEventListener("scroll", () => {
   if (progress >= PEAK_TOP && !peakTriggered) {
     peakTriggered = true;
     peakLocked    = true;
-    smoothFadeTo(PEAK_VOL, 0.12);
+    smoothFadeTo(PEAK_GAIN, 0.12);
     setTimeout(() => { smoothFadeTo(0, 0.018); }, 1000);
 
   } else if (progress >= PEAK_ZONE && !peakTriggered) {
     const ratio = (progress - PEAK_ZONE) / (PEAK_TOP - PEAK_ZONE);
-    smoothFadeTo(MAX_VOL + (PEAK_VOL - MAX_VOL) * ratio);
+    smoothFadeTo(BASE_GAIN + (PEAK_GAIN - BASE_GAIN) * ratio);
 
   } else if (progress < PEAK_ZONE) {
     if (peakTriggered) { peakTriggered = false; peakLocked = false; }
-    smoothFadeTo(MAX_VOL);
+    smoothFadeTo(BASE_GAIN);
   }
 }, { passive: true });
 
@@ -700,94 +688,82 @@ document.getElementById('splash').addEventListener('click', () => {
 </script>
 
 <canvas id="leafCanvas" style="
-  position:fixed; inset:0; width:100%; height:100%;
-  pointer-events:none; z-index:500;
-  opacity:0; transition: opacity 2.5s ease;
+  position:fixed;inset:0;width:100%;height:100%;
+  pointer-events:none;z-index:500;opacity:0;transition:opacity 2.5s ease;
 "></canvas>
 
 <script>
-const lc = document.getElementById('leafCanvas');
-const lx = lc.getContext('2d');
-function resizeLc() { lc.width = window.innerWidth; lc.height = window.innerHeight; }
-resizeLc();
-window.addEventListener('resize', resizeLc);
+const lc=document.getElementById('leafCanvas'),lx=lc.getContext('2d');
+function resizeLc(){lc.width=window.innerWidth;lc.height=window.innerHeight;}
+resizeLc(); window.addEventListener('resize',resizeLc);
 
-const LEAF_COLORS = [
-  [120,85,45],[145,105,55],[100,70,35],[160,120,65],[90,65,30]
-];
+const LEAF_COLORS=[[120,85,45],[145,105,55],[100,70,35],[160,120,65],[90,65,30]];
 
-function drawNaturalLeaf(ctx, s, curl) {
-  ctx.beginPath();
-  ctx.moveTo(0,-s);
-  ctx.bezierCurveTo( s*.9+Math.cos(curl)*s*.15,-s*.3, s*.7,s*.6, 0,s*.9);
-  ctx.bezierCurveTo(-s*.7,s*.6,-s*.9-Math.cos(curl)*s*.15,-s*.3, 0,-s);
+function drawNaturalLeaf(ctx,s,curl){
+  ctx.beginPath(); ctx.moveTo(0,-s);
+  ctx.bezierCurveTo(s*.9+Math.cos(curl)*s*.15,-s*.3,s*.7,s*.6,0,s*.9);
+  ctx.bezierCurveTo(-s*.7,s*.6,-s*.9-Math.cos(curl)*s*.15,-s*.3,0,-s);
   ctx.fill();
 }
-function drawLeafVein(ctx, s) {
-  ctx.beginPath(); ctx.moveTo(0,-s*.85); ctx.quadraticCurveTo(s*.05,0,0,s*.8); ctx.stroke();
-  for (let i=-1;i<=1;i+=2) {
-    ctx.beginPath(); ctx.moveTo(0,-s*.3); ctx.quadraticCurveTo(i*s*.4,0,i*s*.5,s*.1); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,s*.2);  ctx.quadraticCurveTo(i*s*.35,s*.4,i*s*.45,s*.5); ctx.stroke();
+function drawLeafVein(ctx,s){
+  ctx.beginPath();ctx.moveTo(0,-s*.85);ctx.quadraticCurveTo(s*.05,0,0,s*.8);ctx.stroke();
+  for(let i=-1;i<=1;i+=2){
+    ctx.beginPath();ctx.moveTo(0,-s*.3);ctx.quadraticCurveTo(i*s*.4,0,i*s*.5,s*.1);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,s*.2);ctx.quadraticCurveTo(i*s*.35,s*.4,i*s*.45,s*.5);ctx.stroke();
   }
 }
-function spawnLeaf() {
-  const [r,g,b] = LEAF_COLORS[Math.floor(Math.random()*LEAF_COLORS.length)];
-  return {
-    x: Math.random()*lc.width*1.1, y:-20-Math.random()*160,
-    vx:.3+Math.random()*.7, vy:.6+Math.random()*.8,
-    rot:(Math.random()-.5)*.6, rotV:0, rotDamping:.96,
-    rotForce:(Math.random()-.5)*.003,
-    swayPhase:Math.random()*Math.PI*2,
-    swaySpeed:.008+Math.random()*.006,
-    swayAmp:.4+Math.random()*.8,
-    curl:Math.random()*.5, curlSpeed:(Math.random()-.5)*.003,
-    size:10+Math.random()*14, r,g,b,
-    alpha:.55+Math.random()*.35, life:1,
-  };
+function spawnLeaf(){
+  const[r,g,b]=LEAF_COLORS[Math.floor(Math.random()*LEAF_COLORS.length)];
+  return{x:Math.random()*lc.width*1.1,y:-20-Math.random()*160,
+    vx:.3+Math.random()*.7,vy:.6+Math.random()*.8,
+    rot:(Math.random()-.5)*.6,rotV:0,rotDamping:.96,rotForce:(Math.random()-.5)*.003,
+    swayPhase:Math.random()*Math.PI*2,swaySpeed:.008+Math.random()*.006,swayAmp:.4+Math.random()*.8,
+    curl:Math.random()*.5,curlSpeed:(Math.random()-.5)*.003,
+    size:10+Math.random()*14,r,g,b,alpha:.55+Math.random()*.35,life:1};
 }
 
 let leaves=[],leafRunning=false,stopSpawn=false,spawnTimer=0;
-const MAX_ON_SCREEN=22, SPAWN_INTERVAL=26, SCROLL_FADE_PX=280;
+const MAX_ON_SCREEN=22,SPAWN_INTERVAL=26,SCROLL_FADE_PX=280;
 
-function tickLeaves() {
-  if (!leafRunning) return;
+function tickLeaves(){
+  if(!leafRunning)return;
   lx.clearRect(0,0,lc.width,lc.height);
-  if (!stopSpawn && leaves.length < MAX_ON_SCREEN) {
-    if (++spawnTimer >= SPAWN_INTERVAL) { spawnTimer=0; leaves.push(spawnLeaf()); }
+  if(!stopSpawn&&leaves.length<MAX_ON_SCREEN){
+    if(++spawnTimer>=SPAWN_INTERVAL){spawnTimer=0;leaves.push(spawnLeaf());}
   }
-  leaves = leaves.filter(l => l.life>0.02 && l.y<lc.height+60);
-  for (const l of leaves) {
-    l.rotV+=l.rotForce; l.rotV*=l.rotDamping; l.rot+=l.rotV;
+  leaves=leaves.filter(l=>l.life>0.02&&l.y<lc.height+60);
+  for(const l of leaves){
+    l.rotV+=l.rotForce;l.rotV*=l.rotDamping;l.rot+=l.rotV;
     l.swayPhase+=l.swaySpeed;
     l.x+=l.vx+Math.sin(l.swayPhase)*l.swayAmp;
     l.y+=l.vy*(0.85+Math.abs(Math.sin(l.swayPhase))*0.3);
     l.curl+=l.curlSpeed;
-    if (stopSpawn) l.life-=0.004;
-    lx.save(); lx.translate(l.x,l.y); lx.rotate(l.rot);
+    if(stopSpawn)l.life-=0.004;
+    lx.save();lx.translate(l.x,l.y);lx.rotate(l.rot);
     lx.fillStyle=`rgba(${l.r},${l.g},${l.b},${l.alpha*l.life})`;
     drawNaturalLeaf(lx,l.size,l.curl);
     lx.strokeStyle=`rgba(${Math.min(l.r+30,255)},${Math.min(l.g+25,255)},${Math.min(l.b+15,255)},${l.alpha*l.life*.4})`;
-    lx.lineWidth=0.5; drawLeafVein(lx,l.size);
+    lx.lineWidth=0.5;drawLeafVein(lx,l.size);
     lx.restore();
   }
-  if (stopSpawn && leaves.length===0) { leafRunning=false; return; }
+  if(stopSpawn&&leaves.length===0){leafRunning=false;return;}
   requestAnimationFrame(tickLeaves);
 }
 
-function startLeaves() {
-  if (leafRunning) return;
-  leafRunning=true; stopSpawn=false; leaves=[]; spawnTimer=0;
-  lc.style.transition='opacity 2.5s ease'; lc.style.opacity='1';
+function startLeaves(){
+  if(leafRunning)return;
+  leafRunning=true;stopSpawn=false;leaves=[];spawnTimer=0;
+  lc.style.transition='opacity 2.5s ease';lc.style.opacity='1';
   requestAnimationFrame(tickLeaves);
 }
 
-window.addEventListener('scroll', () => {
-  if (window.scrollY>0 && !stopSpawn) {
+window.addEventListener('scroll',()=>{
+  if(window.scrollY>0&&!stopSpawn){
     stopSpawn=true;
     const fade=()=>{
       const r=Math.min(window.scrollY/SCROLL_FADE_PX,1);
-      lc.style.transition='none'; lc.style.opacity=String(1-r);
-      if (r<1 && stopSpawn) requestAnimationFrame(fade);
+      lc.style.transition='none';lc.style.opacity=String(1-r);
+      if(r<1&&stopSpawn)requestAnimationFrame(fade);
     };
     fade();
   }
